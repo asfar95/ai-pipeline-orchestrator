@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 610" width="880" height="610">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#94a3b8"/>
+    </marker>
+    <filter id="s" x="-4%" y="-8%" width="108%" height="122%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2.5" flood-color="#00000018"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="880" height="610" fill="#f8fafc"/>
+
+  <!-- Title -->
+  <text x="440" y="36" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="20" font-weight="700" fill="#0f172a">GitHub AI Automation Pipeline</text>
+  <text x="440" y="58" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="13" fill="#64748b">Open a bug issue → four AI agents handle everything, end to end</text>
+
+  <!-- Column headers -->
+  <text x="119" y="84" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" font-weight="600" fill="#94a3b8" letter-spacing="1.2">GITHUB TRIGGER</text>
+  <text x="440" y="84" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" font-weight="600" fill="#94a3b8" letter-spacing="1.2">COMPONENT</text>
+  <text x="761" y="84" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" font-weight="600" fill="#94a3b8" letter-spacing="1.2">OUTPUT</text>
+  <line x1="10" y1="91" x2="870" y2="91" stroke="#e2e8f0" stroke-width="1"/>
+
+  <!-- ── ORCHESTRATOR ── -->
+  <rect x="10" y="100" width="860" height="70" rx="10" fill="#6d28d9" filter="url(#s)"/>
+  <text x="440" y="126" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="15" font-weight="700" fill="#ffffff">🔀  ai-pipeline-orchestrator</text>
+  <text x="440" y="146" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="12" fill="#ddd6fe">Receives ALL GitHub webhooks  ·  Owns all sequencing  ·  Port 3000</text>
+  <text x="440" y="162" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#c4b5fd">Holds each event until the previous agent signals completion</text>
+
+  <!-- Connector: Orchestrator → Triage -->
+  <line x1="440" y1="170" x2="440" y2="188" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ── ROW 1: TRIAGE ── -->
+  <rect x="10" y="193" width="218" height="56" rx="8" fill="#dbeafe"/>
+  <text x="119" y="217" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="600" fill="#1e40af">issues.opened</text>
+  <text x="119" y="237" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#3b82f6">issues.reopened</text>
+  <line x1="228" y1="221" x2="252" y2="221" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="255" y="185" width="370" height="72" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="2" filter="url(#s)"/>
+  <text x="440" y="211" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="13" font-weight="600" fill="#1e40af">🤖  Triage Agent</text>
+  <text x="440" y="230" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#3b82f6">github-issue-triage-agent  ·  Port 3002</text>
+  <text x="440" y="248" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#64748b">Classify issue · add labels · post triage comment</text>
+
+  <line x1="625" y1="221" x2="649" y2="221" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="652" y="193" width="218" height="56" rx="8" fill="#eff6ff"/>
+  <text x="761" y="217" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="600" fill="#1e40af">bug label added</text>
+  <text x="761" y="237" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#3b82f6">triage comment posted</text>
+
+  <!-- Connector: Triage → Autofix -->
+  <line x1="440" y1="257" x2="440" y2="277" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="340" y="259" width="200" height="16" rx="8" fill="#f1f5f9"/>
+  <text x="440" y="271" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#64748b">triage-done signal →</text>
+
+  <!-- ── ROW 2: AUTOFIX ── -->
+  <rect x="10" y="282" width="218" height="56" rx="8" fill="#d1fae5"/>
+  <text x="119" y="306" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="600" fill="#065f46">issues.labeled "bug"</text>
+  <text x="119" y="326" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#059669">held until triage-done</text>
+  <line x1="228" y1="310" x2="252" y2="310" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="255" y="274" width="370" height="72" rx="8" fill="#ffffff" stroke="#059669" stroke-width="2" filter="url(#s)"/>
+  <text x="440" y="300" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="13" font-weight="600" fill="#065f46">🔧  Autofix Agent</text>
+  <text x="440" y="319" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#10b981">github-autofix-agent  ·  Port 3003</text>
+  <text x="440" y="337" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#64748b">Find root cause · write fix · open pull request</text>
+
+  <line x1="625" y1="310" x2="649" y2="310" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="652" y="282" width="218" height="56" rx="8" fill="#f0fdf4"/>
+  <text x="761" y="306" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="600" fill="#065f46">fix branch created</text>
+  <text x="761" y="326" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#059669">pull request opened</text>
+
+  <!-- Connector: Autofix → Review Bot -->
+  <line x1="440" y1="346" x2="440" y2="366" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="332" y="348" width="216" height="16" rx="8" fill="#f1f5f9"/>
+  <text x="440" y="360" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#64748b">autofix-done signal →</text>
+
+  <!-- ── ROW 3: REVIEW BOT ── -->
+  <rect x="10" y="371" width="218" height="56" rx="8" fill="#fef3c7"/>
+  <text x="119" y="395" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="600" fill="#92400e">pull_request.opened</text>
+  <text x="119" y="415" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#b45309">pull_request.synchronize</text>
+  <line x1="228" y1="399" x2="252" y2="399" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="255" y="363" width="370" height="72" rx="8" fill="#ffffff" stroke="#d97706" stroke-width="2" filter="url(#s)"/>
+  <text x="440" y="389" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="13" font-weight="600" fill="#92400e">🔍  Code Review Bot</text>
+  <text x="440" y="408" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#f59e0b">ai-code-review-bot  ·  Port 3001</text>
+  <text x="440" y="426" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#64748b">Review diff · post inline comments on the PR</text>
+
+  <line x1="625" y1="399" x2="649" y2="399" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="652" y="371" width="218" height="56" rx="8" fill="#fffbeb"/>
+  <text x="761" y="395" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="600" fill="#92400e">inline diff comments</text>
+  <text x="761" y="415" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#b45309">posted on the PR</text>
+
+  <!-- Connector: Review Bot → Review-Fix -->
+  <line x1="440" y1="435" x2="440" y2="455" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ── ROW 4: REVIEW-FIX ── -->
+  <rect x="10" y="460" width="218" height="56" rx="8" fill="#ede9fe"/>
+  <text x="119" y="484" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="600" fill="#4c1d95">pull_request_review</text>
+  <text x="119" y="504" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#7c3aed">fix/issue-* branches only</text>
+  <line x1="228" y1="488" x2="252" y2="488" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="255" y="452" width="370" height="72" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="2" filter="url(#s)"/>
+  <text x="440" y="478" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="13" font-weight="600" fill="#4c1d95">🔧  Review-Fix Agent</text>
+  <text x="440" y="497" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#8b5cf6">github-autofix-agent (review mode)  ·  Port 3003</text>
+  <text x="440" y="515" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#64748b">Apply fixes · reply to each review comment</text>
+
+  <line x1="625" y1="488" x2="649" y2="488" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="652" y="460" width="218" height="56" rx="8" fill="#faf5ff"/>
+  <text x="761" y="484" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="600" fill="#4c1d95">fixes applied</text>
+  <text x="761" y="504" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#7c3aed">PR replies posted</text>
+
+  <!-- ── FOOTER / LEGEND ── -->
+  <line x1="10" y1="540" x2="870" y2="540" stroke="#e2e8f0" stroke-width="1"/>
+
+  <line x1="30" y1="562" x2="68" y2="562" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="76" y="566" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#64748b">event forwarded to agent</text>
+
+  <rect x="252" y="554" width="60" height="16" rx="8" fill="#d1fae5"/>
+  <text x="282" y="566" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#065f46">trigger</text>
+  <text x="320" y="566" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#64748b">GitHub event that activates the agent</text>
+
+  <rect x="560" y="554" width="60" height="16" rx="8" fill="#eff6ff"/>
+  <text x="590" y="566" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#1e40af">output</text>
+  <text x="628" y="566" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#64748b">what the agent produces</text>
+
+  <rect x="30" y="580" width="820" height="20" rx="4" fill="#f1f5f9"/>
+  <text x="440" y="594" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#64748b">The orchestrator holds the "bug" label event until triage-done arrives — guaranteeing sequential execution even under concurrent load</text>
+</svg>
