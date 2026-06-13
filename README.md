@@ -1,6 +1,6 @@
 # ai-pipeline-orchestrator
 
-Stateful webhook orchestrator for the [GitHub AI automation pipeline](https://github.com/asfar95/sample-app). Receives all GitHub events through a single webhook URL and sequences three AI agents in the correct order — triage → autofix → code review → review-fix — without race conditions.
+Stateful webhook orchestrator for the [GitHub AI automation pipeline](https://github.com/asfar95/ai-agent-playground). Receives all GitHub events through a single webhook URL and sequences three AI agents in the correct order — triage → autofix → code review → review-fix — without race conditions.
 
 ---
 
@@ -94,7 +94,7 @@ Agents call these when they finish. The router uses them to advance the pipeline
 ### `POST /internal/triage-done`
 
 ```json
-{ "owner": "asfar95", "repo": "sample-app", "issueNumber": 42 }
+{ "owner": "asfar95", "repo": "ai-agent-playground", "issueNumber": 42 }
 ```
 
 Marks triage complete for the issue. If a `bug` label event already arrived and is queued in `pendingAutofix`, the router fires the autofix agent immediately.
@@ -102,7 +102,7 @@ Marks triage complete for the issue. If a `bug` label event already arrived and 
 ### `POST /internal/autofix-done`
 
 ```json
-{ "owner": "asfar95", "repo": "sample-app", "issueNumber": 42, "pullNumber": 7 }
+{ "owner": "asfar95", "repo": "ai-agent-playground", "issueNumber": 42, "pullNumber": 7 }
 ```
 
 Currently used for logging only (the PR number is recorded). Future: could trigger review bot directly rather than waiting for GitHub's `pull_request.opened` webhook.
@@ -207,7 +207,7 @@ AUTOFIX_DONE_URL=http://localhost:3000/internal/autofix-done
 
 | Repo | Purpose |
 |------|---------|
-| [sample-app](https://github.com/asfar95/sample-app) | Demo target — open issues here to trigger the pipeline |
+| [ai-agent-playground](https://github.com/asfar95/ai-agent-playground) | Demo target — open issues here to trigger the pipeline |
 | [github-issue-triage-agent](https://github.com/asfar95/github-issue-triage-agent) | Classifies issues and adds labels |
 | [github-autofix-agent](https://github.com/asfar95/github-autofix-agent) | Writes code fixes, opens PRs, addresses review comments |
 | [ai-code-review-bot](https://github.com/asfar95/ai-code-review-bot) | Reviews PRs and posts inline diff comments |
