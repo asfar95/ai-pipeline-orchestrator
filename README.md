@@ -1,4 +1,4 @@
-# ai-webhook-router
+# ai-pipeline-orchestrator
 
 Stateful webhook orchestrator for the [GitHub AI automation pipeline](https://github.com/asfar95/sample-app). Receives all GitHub events through a single webhook URL and sequences three AI agents in the correct order — triage → autofix → code review → review-fix — without race conditions.
 
@@ -27,7 +27,7 @@ GitHub
   │
   ▼
 ┌─────────────────────────────────────────────────────┐
-│               ai-webhook-router :3000               │
+│           ai-pipeline-orchestrator :3000            │
 │                                                     │
 │  pipelineState Map                                  │
 │  "owner/repo#42" → { triageDone, pendingAutofix }   │
@@ -161,7 +161,7 @@ cd ai-code-review-bot/backend && npm start  # :3001
 ### 2. Start the router
 
 ```bash
-cd ai-webhook-router
+cd ai-pipeline-orchestrator
 node index.js
 ```
 

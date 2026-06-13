@@ -1,5 +1,5 @@
 {
-  "name": "ai-webhook-router",
+  "name": "ai-pipeline-orchestrator",
   "version": "1.0.0",
   "description": "Stateful webhook orchestrator for the GitHub AI automation pipeline",
   "main": "index.js",
