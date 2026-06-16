@@ -2,19 +2,34 @@
 // Owns pipeline sequencing: triage → autofix → review-fix.
 // Agents signal completion back here; the router decides what runs next.
 //
-// Usage: node ~/webhook-router.js
+// Usage: GITHUB_WEBHOOK_SECRET=<secret> node index.js
 // Then point ONE GitHub webhook at: https://<ngrok-url>/webhook
 
-const http = require('http');
+const http   = require('http');
+const crypto = require('crypto');
 
-const PORT = 3000;
-const TRIAGE_PORT = 3002;
-const AUTOFIX_PORT = 3003;
-const REVIEW_PORT  = 3001;
+const PORT         = parseInt(process.env.PORT || '3000', 10);
+const TRIAGE_PORT  = parseInt(process.env.TRIAGE_PORT  || '3002', 10);
+const AUTOFIX_PORT = parseInt(process.env.AUTOFIX_PORT || '3003', 10);
+const REVIEW_PORT  = parseInt(process.env.REVIEW_PORT  || '3001', 10);
+
+if (!process.env.GITHUB_WEBHOOK_SECRET) {
+  console.error('❌ Fatal: GITHUB_WEBHOOK_SECRET is not set.');
+  process.exit(1);
+}
 
 // Per-issue pipeline state.
-// key: `owner/repo#issueNumber`  value: { triageDone, pendingAutofix }
+// key: `owner/repo#issueNumber`  value: { triageDone, pendingAutofix, createdAt }
 const pipelineState = new Map();
+
+// Evict entries older than 6 hours to prevent unbounded memory growth.
+// Issues that never triggered autofix (not labeled "bug") would otherwise stay forever.
+setInterval(() => {
+  const cutoff = Date.now() - 6 * 60 * 60 * 1000;
+  for (const [key, state] of pipelineState) {
+    if (state.createdAt < cutoff) pipelineState.delete(key);
+  }
+}, 60 * 60 * 1000).unref();
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -23,11 +38,18 @@ function issueKey(owner, repo, issueNumber) {
 }
 
 function readBody(req) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const chunks = [];
     req.on('data', chunk => chunks.push(chunk));
-    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('end',  () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
   });
+}
+
+function verifySignature(rawBody, signature) {
+  if (!signature) return false;
+  const digest = 'sha256=' + crypto.createHmac('sha256', process.env.GITHUB_WEBHOOK_SECRET).update(rawBody).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature));
 }
 
 function parsePayload(rawBody) {
@@ -38,6 +60,12 @@ function parsePayload(rawBody) {
   } catch {
     return null;
   }
+}
+
+function send(res, status, body) {
+  const data = JSON.stringify(body);
+  res.writeHead(status, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) });
+  res.end(data);
 }
 
 function forward(port, rawBody, headers) {
@@ -60,19 +88,32 @@ const server = http.createServer(async (req, res) => {
   try {
     rawBody = await readBody(req);
   } catch {
-    res.writeHead(500);
-    res.end('body read error');
+    send(res, 500, { error: 'body read error' });
+    return;
+  }
+
+  // ── Health check ────────────────────────────────────────────────────────────
+  if (req.url === '/health') {
+    send(res, 200, { status: 'ok', pipeline_entries: pipelineState.size });
     return;
   }
 
   // ── /internal/triage-done ───────────────────────────────────────────────────
   if (req.method === 'POST' && req.url === '/internal/triage-done') {
-    const { owner, repo, issueNumber } = JSON.parse(rawBody.toString());
+    let body;
+    try { body = JSON.parse(rawBody.toString()); } catch {
+      send(res, 400, { error: 'Invalid JSON' });
+      return;
+    }
+    const { owner, repo, issueNumber } = body;
+    if (!owner || !repo || !issueNumber) {
+      send(res, 400, { error: 'Missing owner, repo, or issueNumber' });
+      return;
+    }
     const key = issueKey(owner, repo, issueNumber);
-
     console.log(`\n📡 triage-done: ${key}`);
 
-    const state = pipelineState.get(key) || {};
+    const state = pipelineState.get(key) || { createdAt: Date.now() };
     state.triageDone = true;
     pipelineState.set(key, state);
 
@@ -86,34 +127,42 @@ const server = http.createServer(async (req, res) => {
       console.log(`  ℹ️  No queued autofix for ${key} (not labeled "bug" yet, or not a bug)`);
     }
 
-    res.writeHead(200);
-    res.end(JSON.stringify({ ok: true }));
+    send(res, 200, { ok: true });
     return;
   }
 
   // ── /internal/autofix-done ─────────────────────────────────────────────────
   if (req.method === 'POST' && req.url === '/internal/autofix-done') {
-    const { owner, repo, issueNumber, pullNumber } = JSON.parse(rawBody.toString());
+    let body;
+    try { body = JSON.parse(rawBody.toString()); } catch {
+      send(res, 400, { error: 'Invalid JSON' });
+      return;
+    }
+    const { owner, repo, issueNumber, pullNumber } = body;
     const key = issueKey(owner, repo, issueNumber);
     console.log(`\n📡 autofix-done: ${key} → PR #${pullNumber ?? 'none'}`);
-    res.writeHead(200);
-    res.end(JSON.stringify({ ok: true }));
+    send(res, 200, { ok: true });
     return;
   }
 
   // ── /webhook — GitHub events ───────────────────────────────────────────────
   if (req.method !== 'POST' || req.url !== '/webhook') {
-    res.writeHead(200);
-    res.end(JSON.stringify({ status: 'webhook-router running' }));
+    send(res, 200, { status: 'webhook-router running' });
     return;
   }
 
-  const event = req.headers['x-github-event'];
+  // Verify GitHub webhook signature before processing
+  if (!verifySignature(rawBody, req.headers['x-hub-signature-256'])) {
+    console.warn('❌ Invalid webhook signature — rejected');
+    send(res, 401, { error: 'Invalid signature' });
+    return;
+  }
+
+  const event   = req.headers['x-github-event'];
   const payload = parsePayload(rawBody);
 
   if (!payload) {
-    res.writeHead(400);
-    res.end(JSON.stringify({ error: 'Invalid payload' }));
+    send(res, 400, { error: 'Invalid payload' });
     return;
   }
 
@@ -122,16 +171,19 @@ const server = http.createServer(async (req, res) => {
 
   // issues.opened / issues.reopened → triage only
   if (event === 'issues' && (payload.action === 'opened' || payload.action === 'reopened')) {
-    const issueNumber = payload.issue.number;
+    const issueNumber = payload.issue?.number;
+    if (!owner || !repo || !issueNumber) {
+      send(res, 400, { error: 'Malformed payload: missing owner, repo, or issue number' });
+      return;
+    }
     const key = issueKey(owner, repo, issueNumber);
     console.log(`\n📨 issues.${payload.action}: ${key} — "${payload.issue.title}"`);
 
     if (!pipelineState.has(key)) {
-      pipelineState.set(key, { triageDone: false, pendingAutofix: null });
+      pipelineState.set(key, { triageDone: false, pendingAutofix: null, createdAt: Date.now() });
     }
 
-    res.writeHead(200);
-    res.end(JSON.stringify({ message: 'forwarded to triage', issue: issueNumber }));
+    send(res, 200, { message: 'forwarded to triage', issue: issueNumber });
 
     const r = await forward(TRIAGE_PORT, rawBody, req.headers);
     console.log(`   ✅ triage (${TRIAGE_PORT}) → ${r.status}`);
@@ -140,15 +192,18 @@ const server = http.createServer(async (req, res) => {
 
   // issues.labeled "bug" → hold until triage-done, then fire autofix
   if (event === 'issues' && payload.action === 'labeled' && payload.label?.name === 'bug') {
-    const issueNumber = payload.issue.number;
+    const issueNumber = payload.issue?.number;
+    if (!owner || !repo || !issueNumber) {
+      send(res, 400, { error: 'Malformed payload: missing owner, repo, or issue number' });
+      return;
+    }
     const key = issueKey(owner, repo, issueNumber);
     console.log(`\n📨 issues.labeled "bug": ${key}`);
 
-    const state = pipelineState.get(key) || { triageDone: false, pendingAutofix: null };
+    const state = pipelineState.get(key) || { triageDone: false, pendingAutofix: null, createdAt: Date.now() };
     pipelineState.set(key, state);
 
-    res.writeHead(200);
-    res.end(JSON.stringify({ message: 'queuing or forwarding to autofix', issue: issueNumber }));
+    send(res, 200, { message: 'queuing or forwarding to autofix', issue: issueNumber });
 
     if (state.triageDone) {
       console.log(`  ▶️  Triage already done — forwarding immediately to autofix`);
@@ -158,7 +213,7 @@ const server = http.createServer(async (req, res) => {
       console.log(`  ⏳ Triage still running — queuing autofix payload`);
       state.pendingAutofix = { pendingRawBody: rawBody, pendingHeaders: { ...req.headers } };
 
-      // Safety net: if triage-done never arrives (agent crashed, no ROUTER_URL set),
+      // Safety net: if triage-done never arrives (agent crashed, TRIAGE_DONE_URL not set),
       // fire autofix after 3 minutes rather than holding the event forever.
       setTimeout(() => {
         const current = pipelineState.get(key);
@@ -175,11 +230,14 @@ const server = http.createServer(async (req, res) => {
 
   // pull_request.opened / synchronize → review bot
   if (event === 'pull_request' && (payload.action === 'opened' || payload.action === 'synchronize')) {
-    const pullNumber = payload.pull_request.number;
+    const pullNumber = payload.pull_request?.number;
+    if (!owner || !repo || !pullNumber) {
+      send(res, 400, { error: 'Malformed payload: missing owner, repo, or PR number' });
+      return;
+    }
     console.log(`\n📨 pull_request.${payload.action}: PR #${pullNumber}`);
 
-    res.writeHead(200);
-    res.end(JSON.stringify({ message: 'forwarded to review bot', pr: pullNumber }));
+    send(res, 200, { message: 'forwarded to review bot', pr: pullNumber });
 
     const r = await forward(REVIEW_PORT, rawBody, req.headers);
     console.log(`   ✅ review bot (${REVIEW_PORT}) → ${r.status}`);
@@ -192,20 +250,24 @@ const server = http.createServer(async (req, res) => {
   // Sequencing is guaranteed by GitHub: this event only exists after a review
   // is submitted, so code-review-bot is always done by the time it arrives.
   if (event === 'pull_request_review' && payload.action === 'submitted') {
-    const pullNumber = payload.pull_request.number;
+    const pullNumber = payload.pull_request?.number;
     const reviewer   = payload.review?.user?.login;
     const branch     = payload.pull_request?.head?.ref;
+
+    if (!owner || !repo || !pullNumber) {
+      send(res, 400, { error: 'Malformed payload: missing owner, repo, or PR number' });
+      return;
+    }
+
     console.log(`\n📨 pull_request_review.submitted: PR #${pullNumber} by ${reviewer} (branch: ${branch})`);
 
     if (!branch?.startsWith('fix/issue-')) {
       console.log(`  ⏭  Skipping — not a fix/issue-* branch`);
-      res.writeHead(200);
-      res.end(JSON.stringify({ message: 'skipped — not a fix branch', pr: pullNumber }));
+      send(res, 200, { message: 'skipped — not a fix branch', pr: pullNumber });
       return;
     }
 
-    res.writeHead(200);
-    res.end(JSON.stringify({ message: 'forwarded to review-fix', pr: pullNumber }));
+    send(res, 200, { message: 'forwarded to review-fix', pr: pullNumber });
 
     const r = await forward(AUTOFIX_PORT, rawBody, req.headers);
     console.log(`   ✅ review-fix (${AUTOFIX_PORT}) → ${r.status}`);
@@ -214,13 +276,13 @@ const server = http.createServer(async (req, res) => {
 
   // Everything else — ignore
   console.log(`⏭  Ignored: ${event}.${payload.action || '?'}`);
-  res.writeHead(200);
-  res.end(JSON.stringify({ message: `Ignored: ${event}.${payload.action}` }));
+  send(res, 200, { message: `Ignored: ${event}.${payload.action}` });
 });
 
 server.listen(PORT, () => {
   console.log(`\n🔀 Webhook Router (Orchestrator)`);
   console.log(`   Listening : http://localhost:${PORT}/webhook`);
+  console.log(`   Health    : http://localhost:${PORT}/health`);
   console.log(`   Internal  : http://localhost:${PORT}/internal/triage-done`);
   console.log(`               http://localhost:${PORT}/internal/autofix-done`);
   console.log(`\n   Pipeline  :`);
@@ -229,3 +291,11 @@ server.listen(PORT, () => {
   console.log(`     pull_request           → review bot (${REVIEW_PORT})`);
   console.log(`     pull_request_review    → review-fix (${AUTOFIX_PORT}) immediately\n`);
 });
+
+function shutdown(signal) {
+  console.log(`\n⏳ ${signal} received — shutting down gracefully`);
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 30_000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
